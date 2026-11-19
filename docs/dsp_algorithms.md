@@ -93,3 +93,38 @@ Real human speech contains involuntary physiological tremors originating from la
    $$\text{Shimmer} = \frac{\frac{1}{P-1} \sum_{i=1}^{P-1} |A_i - A_{i+1}|}{\frac{1}{P} \sum_{i=1}^P A_i}$$
 
 Synthetic text-to-speech engines typically over-smooth pitch contours, exhibiting unnaturally low jitter values during sustained vowel phonation.
+
+---
+
+## 6. Adaptive Wiener Spectral Denoising
+
+On noisy cellular and telephony channels, additive stationary noise can corrupt zero-crossing and harmonic measurements. voiceprobe tracks the stationary noise floor during unvoiced intervals ($VAD = 0$):
+
+$$N_k[t] = \alpha_N \cdot N_k[t-1] + (1 - \alpha_N) \cdot |X_k[t]|$$
+
+The Wiener suppression gain is computed per frequency bin:
+
+$$G_k = \max\left(\frac{P_k - \beta \cdot N_k}{P_k}, G_{min}\right)$$
+
+where $\beta = 1.25$ provides targeted over-subtraction and $G_{min} = 0.15$ (-16 dB) preserves the natural acoustic breath floor without inducing musical noise artifacts.
+
+---
+
+## 7. Spectral Tilt Regression & Formant Dispersion
+
+Human phonation undergoes glottal slope attenuation (-12 dB/octave) counterbalanced by lip radiation (+6 dB/octave), yielding a natural net spectral tilt of -4 to -8 dB/octave across vocal harmonics:
+
+$$S_{tilt} = \frac{K \sum x_k y_k - \sum x_k \sum y_k}{K \sum x_k^2 - (\sum x_k)^2}$$
+
+where $x_k = \log_2(f_k / 250)$ and $y_k = 20 \log_{10}(|X_k|)$. Neural vocoders trained with uniform sub-band loss weights regularly exhibit abnormally flat spectral slopes (-1 to -3 dB/octave).
+
+---
+
+## 8. Loudspeaker Non-Linear Replay Distortion (THD)
+
+When an attacker plays cloned speech through an external mobile phone or laptop speaker positioned near the telephone handset, physical transducer distortion elevates Total Harmonic Distortion (THD):
+
+$$THD = \frac{\sqrt{\sum_{h=2}^6 |X(h \cdot f_0)|^2}}{|X(f_0)|} \times 100\%$$
+
+Physical micro-speakers generate THD levels exceeding 18% to 30%, combined with an acoustic sub-bass cutoff below 140 Hz due to physical enclosure limitations.
+

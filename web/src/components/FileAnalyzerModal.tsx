@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { UploadCloud, FileAudio, CheckCircle2, AlertOctagon, AlertTriangle, X, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { UploadCloud, FileAudio, CheckCircle2, AlertOctagon, AlertTriangle, X, Loader2, Play, Pause, Filter, Info } from 'lucide-react';
 import { FileAnalysisResult, RiskLevel } from '../types/telemetry';
 
 interface FileAnalyzerModalProps {
@@ -7,17 +7,85 @@ interface FileAnalyzerModalProps {
   onClose: () => void;
 }
 
+type AudioFilterMode = 'FULL' | 'VOCODER_BAND' | 'LOWPASS_F0';
+
 export const FileAnalyzerModal: React.FC<FileAnalyzerModalProps> = ({ isOpen, onClose }) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<FileAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Audio Playback & Scrubbing
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [selectedFrameIdx, setSelectedFrameIdx] = useState<number | null>(null);
+  const [filterMode, setFilterMode] = useState<AudioFilterMode>('FULL');
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const filterNodeRef = useRef<BiquadFilterNode | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close();
+      }
+    };
+  }, [audioUrl]);
+
   if (!isOpen) return null;
+
+  // Initialize Web Audio Filter Graph
+  const initAudioGraph = () => {
+    if (!audioRef.current || audioCtxRef.current) return;
+
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioCtxRef.current = audioCtx;
+
+    const source = audioCtx.createMediaElementSource(audioRef.current);
+    sourceNodeRef.current = source;
+
+    const filterNode = audioCtx.createBiquadFilter();
+    filterNodeRef.current = filterNode;
+
+    source.connect(filterNode);
+    filterNode.connect(audioCtx.destination);
+    applyFilter(filterMode);
+  };
+
+  const applyFilter = (mode: AudioFilterMode) => {
+    setFilterMode(mode);
+    const filter = filterNodeRef.current;
+    if (!filter) return;
+
+    if (mode === 'VOCODER_BAND') {
+      filter.type = 'bandpass';
+      filter.frequency.value = 3100;
+      filter.Q.value = 3.5;
+    } else if (mode === 'LOWPASS_F0') {
+      filter.type = 'lowpass';
+      filter.frequency.value = 400;
+      filter.Q.value = 1.0;
+    } else {
+      filter.type = 'allpass';
+    }
+  };
 
   const handleFileUpload = async (file: File) => {
     setAnalyzing(true);
     setError(null);
     setResult(null);
+
+    // Create playable object URL
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    const url = URL.createObjectURL(file);
+    setAudioUrl(url);
 
     const formData = new FormData();
     formData.append('audio', file);
@@ -47,20 +115,49 @@ export const FileAnalyzerModal: React.FC<FileAnalyzerModalProps> = ({ isOpen, on
     setResult(null);
 
     try {
-      const response = await fetch(`/api/v1/simulate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, duration_sec: 5 }),
-      });
-      if (!response.ok) {
-        throw new Error('Simulation failed to trigger');
+      const resp = await fetch(`/examples/sample_calls/${type === 'human' ? 'human_customer_call.wav' : 'cloned_elevenlabs_vishing.wav'}`);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        const file = new File([blob], `${type}_sample.wav`, { type: 'audio/wav' });
+        await handleFileUpload(file);
+      } else {
+        // Fallback to simulate
+        await fetch(`/api/v1/simulate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, duration_sec: 5 }),
+        });
+        setError(`Stream simulation started for ${type} sample. Telemetry active on main cockpit.`);
       }
-
-      setError(`Stream simulation started for ${type} sample. Inspect live telemetry stream in cockpit.`);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleSeekToFrame = (frameIdx: number, offsetMs: number) => {
+    setSelectedFrameIdx(frameIdx);
+    if (audioRef.current) {
+      audioRef.current.currentTime = offsetMs / 1000;
+      if (!isPlaying) {
+        initAudioGraph();
+        audioRef.current.play();
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    initAudioGraph();
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
     }
   };
 
@@ -89,13 +186,13 @@ export const FileAnalyzerModal: React.FC<FileAnalyzerModalProps> = ({ isOpen, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl rounded-xl bg-[#0f111a] border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-4xl rounded-xl bg-[#0f111a] border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
         <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
           <div className="flex items-center gap-2">
             <FileAudio className="w-5 h-5 text-cyan-400" />
             <h2 className="text-sm font-mono font-bold text-white tracking-wide">
-              FORENSIC AUDIO FILE ANALYZER (WAV PCM 8kHz / 16kHz)
+              FORENSIC AUDIO FILE ANALYZER & INTERACTIVE WAVEFORM SCRUBBER
             </h2>
           </div>
           <button
@@ -143,13 +240,13 @@ export const FileAnalyzerModal: React.FC<FileAnalyzerModalProps> = ({ isOpen, on
             <span className="text-xs font-mono text-slate-400">Quick Test:</span>
             <button
               onClick={() => handlePresetSample('human')}
-              className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-700 text-xs font-mono cursor-pointer"
+              className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-700 text-xs font-mono cursor-pointer transition"
             >
               Test Human Phonation
             </button>
             <button
               onClick={() => handlePresetSample('cloned')}
-              className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-rose-400 border border-slate-700 text-xs font-mono cursor-pointer"
+              className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-rose-400 border border-slate-700 text-xs font-mono cursor-pointer transition"
             >
               Test Cloned Deepfake
             </button>
@@ -165,6 +262,86 @@ export const FileAnalyzerModal: React.FC<FileAnalyzerModalProps> = ({ isOpen, on
           {error && (
             <div className="p-3 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-mono">
               {error}
+            </div>
+          )}
+
+          {/* Audio Player & Forensic Filter Controls */}
+          {audioUrl && (
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={togglePlay}
+                    className="w-9 h-9 rounded-full bg-cyan-500 hover:bg-cyan-400 text-black flex items-center justify-center transition cursor-pointer shadow-[0_0_12px_rgba(0,242,254,0.3)]"
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4 fill-black" /> : <Play className="w-4 h-4 fill-black ml-0.5" />}
+                  </button>
+                  <div className="font-mono text-xs text-slate-300">
+                    <span className="text-white font-bold">{currentTime.toFixed(2)}s</span>
+                    <span className="text-slate-500"> / {result ? `${result.duration_sec.toFixed(2)}s` : '--'}</span>
+                  </div>
+                </div>
+
+                {/* Filter Band Toggles */}
+                <div className="flex items-center flex-wrap gap-1.5 text-xs font-mono">
+                  <span className="text-slate-500 flex items-center gap-1 mr-1">
+                    <Filter className="w-3.5 h-3.5 text-cyan-400" /> Filter:
+                  </span>
+                  <button
+                    onClick={() => applyFilter('FULL')}
+                    className={`px-2 py-0.5 rounded border transition cursor-pointer ${
+                      filterMode === 'FULL'
+                        ? 'bg-cyan-950 text-cyan-300 border-cyan-800'
+                        : 'bg-slate-900 text-slate-400 border-slate-800'
+                    }`}
+                  >
+                    Full Audio
+                  </button>
+                  <button
+                    onClick={() => applyFilter('VOCODER_BAND')}
+                    className={`px-2 py-0.5 rounded border transition cursor-pointer ${
+                      filterMode === 'VOCODER_BAND'
+                        ? 'bg-rose-950 text-rose-300 border-rose-800 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800'
+                    }`}
+                    title="Bandpass 2.8kHz - 3.4kHz: Hear only the vocoder transposed-convolution artifacts"
+                  >
+                    Vocoder Band (2.8 - 3.4 kHz)
+                  </button>
+                  <button
+                    onClick={() => applyFilter('LOWPASS_F0')}
+                    className={`px-2 py-0.5 rounded border transition cursor-pointer ${
+                      filterMode === 'LOWPASS_F0'
+                        ? 'bg-indigo-950 text-indigo-300 border-indigo-800'
+                        : 'bg-slate-900 text-slate-400 border-slate-800'
+                    }`}
+                    title="Lowpass 400Hz: Hear the isolated vocal cord fundamental phonation"
+                  >
+                    Glottal F0 (&lt; 400 Hz)
+                  </button>
+                </div>
+              </div>
+
+              <audio
+                ref={audioRef}
+                src={audioUrl}
+                onTimeUpdate={() => {
+                  if (audioRef.current) {
+                    setCurrentTime(audioRef.current.currentTime);
+                    if (result) {
+                      const curMs = audioRef.current.currentTime * 1000;
+                      const active = result.frames.findIndex(
+                        f => curMs >= f.timestamp_offset_ms && curMs < f.timestamp_offset_ms + 150
+                      );
+                      if (active !== -1) {
+                        setSelectedFrameIdx(active);
+                      }
+                    }
+                  }
+                }}
+                onEnded={() => setIsPlaying(false)}
+                className="hidden"
+              />
             </div>
           )}
 
@@ -209,28 +386,36 @@ export const FileAnalyzerModal: React.FC<FileAnalyzerModalProps> = ({ isOpen, on
                 </ul>
               </div>
 
-              {/* Sliding Window Frames Chart */}
+              {/* Sliding Window Frames Scrubber Chart */}
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <div className="flex items-center justify-between mb-3 text-xs font-mono text-slate-300">
-                  <span>300ms SLIDING ANALYSIS FRAMES ({result.frames.length} TOTAL)</span>
-                  <span>AVG SCORE: {(result.average_score * 100).toFixed(1)}%</span>
+                <div className="flex items-center justify-between mb-2 text-xs font-mono text-slate-300">
+                  <span className="flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-cyan-400" />
+                    CLICK ANY WINDOW TO JUMP AUDIO (300ms SLICES, 150ms HOP)
+                  </span>
+                  <span>AVG: {(result.average_score * 100).toFixed(1)}%</span>
                 </div>
-                <div className="grid grid-cols-12 sm:grid-cols-16 md:grid-cols-24 gap-1.5 max-h-40 overflow-y-auto p-1">
+                <div className="grid grid-cols-12 sm:grid-cols-16 md:grid-cols-24 gap-1.5 max-h-44 overflow-y-auto p-1 bg-black/40 rounded border border-slate-900">
                   {result.frames.map((frame, idx) => {
                     const scorePct = frame.instant_score * 100;
+                    const isSelected = selectedFrameIdx === idx;
                     let barColor = 'bg-emerald-500';
                     if (frame.instant_score >= 0.8) barColor = 'bg-rose-500';
                     else if (frame.instant_score >= 0.35) barColor = 'bg-amber-500';
                     if (!frame.is_voiced) barColor = 'bg-slate-800';
 
                     return (
-                      <div
+                      <button
                         key={idx}
+                        onClick={() => handleSeekToFrame(idx, frame.timestamp_offset_ms)}
                         title={`Frame #${frame.frame_index} (${frame.timestamp_offset_ms}ms): ${scorePct.toFixed(1)}% ${frame.risk_level}`}
-                        className={`h-9 rounded-sm flex items-end justify-center p-0.5 text-[8px] font-mono text-white transition hover:scale-110 ${barColor}`}
+                        className={`h-11 rounded-sm flex flex-col items-center justify-between p-0.5 text-[8px] font-mono text-white transition cursor-pointer hover:scale-110 ${barColor} ${
+                          isSelected ? 'ring-2 ring-white scale-110 z-10 shadow-[0_0_10px_white]' : 'opacity-85'
+                        }`}
                       >
-                        {frame.is_voiced ? Math.round(scorePct) : '-'}
-                      </div>
+                        <span className="opacity-75">{frame.frame_index}</span>
+                        <span className="font-bold">{frame.is_voiced ? Math.round(scorePct) : '-'}</span>
+                      </button>
                     );
                   })}
                 </div>

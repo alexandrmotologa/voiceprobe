@@ -14,6 +14,10 @@ type FrameFeatures struct {
 	F0Hz               float64   `json:"f0_hz"`
 	Jitter             float64   `json:"jitter"`
 	Shimmer            float64   `json:"shimmer"`
+	SpectralTilt       float64   `json:"spectral_tilt"`
+	FormantDispersion  float64   `json:"formant_dispersion"`
+	THDPercent         float64   `json:"thd_percent"`
+	LoudspeakerAnomaly bool      `json:"loudspeaker_anomaly"`
 	MelEnergies        []float64 `json:"mel_energies"`
 	RawMagnitudes      []float64 `json:"raw_magnitudes,omitempty"`
 	FeatureVector      []float32 `json:"-"`
@@ -28,6 +32,7 @@ type Pipeline struct {
 	fftEngine          *FFTEngine
 	melFilterbank      *MelFilterbank
 	phaseTracker       *PhaseTracker
+	denoiser           *WienerDenoiser
 	prevMagnitudes     []float64
 	hasPrevFrame       bool
 	melEnergiesBuf     []float64
@@ -51,6 +56,7 @@ func NewPipeline(sampleRate, windowMs, hopMs, melBins int, vadEnergyThreshold fl
 		fftEngine:          fftEngine,
 		melFilterbank:      NewMelFilterbank(melBins, fftSize, sampleRate),
 		phaseTracker:       NewPhaseTracker(fftSize),
+		denoiser:           NewWienerDenoiser(fftSize),
 		prevMagnitudes:     make([]float64, bins),
 		hasPrevFrame:       false,
 		melEnergiesBuf:     make([]float64, melBins),
@@ -76,7 +82,10 @@ func (p *Pipeline) ExtractFeatures(samples []float32) *FrameFeatures {
 	// 2. STFT: Magnitudes and Phase Spectrum
 	mags, phases := p.fftEngine.Process(samples)
 
-	// 3. Spectral Metrics
+	// 3. Adaptive Wiener Denoising (improves robustness against stationary telephone channel noise)
+	p.denoiser.Process(mags, vad.IsVoiced == 1.0)
+
+	// 4. Spectral Metrics
 	var flux float64
 	if p.hasPrevFrame {
 		flux = ComputeSpectralFlux(mags, p.prevMagnitudes)
@@ -89,16 +98,22 @@ func (p *Pipeline) ExtractFeatures(samples []float32) *FrameFeatures {
 
 	copy(p.prevMagnitudes, mags)
 
-	// 4. Neuromuscular Micro-Tremor (Jitter, Shimmer, F0)
+	// 5. Neuromuscular Micro-Tremor (Jitter, Shimmer, F0)
 	microTremor := ComputeMicroTremor(samples, p.sampleRate)
 
-	// 5. Glottal Harmonic Phase Discontinuity (Physical excitation coherence vs vocoder dispersion)
+	// 6. Glottal Harmonic Phase Discontinuity (Physical excitation coherence vs vocoder dispersion)
 	phaseDisc := p.phaseTracker.ComputeGlottalPhaseDiscontinuity(phases, mags, microTremor.F0Hz, p.sampleRate, p.fftEngine.Size())
 
-	// 6. Mel Filterbank Log-Energies
+	// 7. Spectral Tilt (slope in dB/octave) & Formant Dispersion
+	tilt := ComputeSpectralTilt(mags, p.sampleRate, p.fftEngine.Size())
+
+	// 8. Physical Replay & Loudspeaker Non-linearity (THD)
+	replay := ComputeReplayFeatures(mags, microTremor.F0Hz, p.sampleRate, p.fftEngine.Size())
+
+	// 9. Mel Filterbank Log-Energies
 	p.melFilterbank.ComputeInto(mags, p.melEnergiesBuf)
 
-	// 7. Compute Cepstral Mean Subtraction (CMN) on Mel bands
+	// 10. Compute Cepstral Mean Subtraction (CMN) on Mel bands
 	var melMean float64
 	melCount := len(p.melEnergiesBuf)
 	for i := 0; i < melCount && i < 40; i++ {
@@ -108,7 +123,7 @@ func (p *Pipeline) ExtractFeatures(samples []float32) *FrameFeatures {
 		melMean /= float64(melCount)
 	}
 
-	// 8. Assemble 48-dimensional normalized feature vector
+	// 11. Assemble 48-dimensional normalized feature vector
 	for i := 0; i < melCount && i < 40; i++ {
 		p.featVecBuf[i] = float32((p.melEnergiesBuf[i] - melMean) / 4.0)
 	}
@@ -130,6 +145,10 @@ func (p *Pipeline) ExtractFeatures(samples []float32) *FrameFeatures {
 		F0Hz:               microTremor.F0Hz,
 		Jitter:             microTremor.Jitter,
 		Shimmer:            microTremor.Shimmer,
+		SpectralTilt:       tilt.SlopeDbPerOctave,
+		FormantDispersion:  tilt.FormantDispersion,
+		THDPercent:         replay.THDPercent,
+		LoudspeakerAnomaly: replay.LoudspeakerAnomaly,
 		MelEnergies:        p.melEnergiesBuf,
 		FeatureVector:      p.featVecBuf,
 	}

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Shield, ShieldAlert, Activity, Cpu, Clock, PhoneCall, Radio, UploadCloud, Archive } from 'lucide-react';
+import { Shield, ShieldAlert, Activity, Cpu, Clock, PhoneCall, Radio, UploadCloud, Archive, Sliders } from 'lucide-react';
 import { ServerStatus } from '../types/telemetry';
+import { MicrophoneProbe } from './MicrophoneProbe';
 
 interface HeaderProps {
   status: ServerStatus | null;
@@ -9,6 +10,9 @@ interface HeaderProps {
   onOpenUpload: () => void;
   onOpenIncidents: () => void;
   activeCount: number;
+  currentPolicy: string;
+  onSelectPolicy: (policy: string) => void;
+  onMicStreamActive: (active: boolean) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,6 +22,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenUpload,
   onOpenIncidents,
   activeCount,
+  currentPolicy,
+  onSelectPolicy,
+  onMicStreamActive,
 }) => {
   return (
     <header className="border-b border-slate-800/80 bg-[#0c0e15]/95 backdrop-blur sticky top-0 z-40 px-4 py-3">
@@ -51,6 +58,21 @@ export const Header: React.FC<HeaderProps> = ({
             <span>{sseConnected ? 'STREAM LIVE' : 'CONNECTING...'}</span>
           </div>
 
+          {/* Active Policy Selector */}
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-900/80 border border-slate-800 text-slate-300 font-mono">
+            <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+            <select
+              value={currentPolicy}
+              onChange={(e) => onSelectPolicy(e.target.value)}
+              className="bg-transparent text-white font-semibold outline-none cursor-pointer text-xs"
+              title="FinTech Banking Security Policy"
+            >
+              <option value="STANDARD" className="bg-slate-950 text-slate-200">Policy: Standard Surveillance</option>
+              <option value="HIGH_VALUE_WIRE" className="bg-slate-950 text-amber-400 font-bold">Policy: High-Value Wire (&gt; 10k EUR)</option>
+              <option value="EXECUTIVE_PROTECTION" className="bg-slate-950 text-rose-400 font-bold">Policy: Executive VIP (Auto-Kill)</option>
+            </select>
+          </div>
+
           {/* Active Calls */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900/80 border border-slate-800 text-slate-300 font-mono">
             <PhoneCall className="w-3.5 h-3.5 text-cyan-400" />
@@ -66,28 +88,31 @@ export const Header: React.FC<HeaderProps> = ({
           {/* RAM Footprint */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900/80 border border-slate-800 text-slate-300 font-mono hidden lg:flex">
             <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-            <span>RAM: <strong className="text-cyan-400">0.28MB</strong> / 25MB</span>
+            <span>RAM: <strong className="text-cyan-400">0.28MB</strong></span>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex items-center gap-2">
+        {/* Quick Actions & Live Mic Probe */}
+        <div className="flex items-center flex-wrap gap-2">
+          {/* Live Browser Mic Probe */}
+          <MicrophoneProbe onStreamActive={onMicStreamActive} />
+
           <button
             onClick={() => onSimulate('cloned')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/60 transition-all hover:shadow-[0_0_12px_rgba(244,63,94,0.3)] cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-md bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/60 transition-all hover:shadow-[0_0_12px_rgba(244,63,94,0.3)] cursor-pointer"
             title="Simulate incoming synthetic cloned voice call (ElevenLabs / F5-TTS)"
           >
             <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-            <span>Simulate Deepfake Attack</span>
+            <span>Simulate Attack</span>
           </button>
 
           <button
             onClick={() => onSimulate('human')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-800/60 transition-all hover:shadow-[0_0_12px_rgba(16,185,129,0.3)] cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-md bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-800/60 transition-all hover:shadow-[0_0_12px_rgba(16,185,129,0.3)] cursor-pointer"
             title="Simulate authentic organic human customer call"
           >
             <Activity className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Simulate Clean Voice</span>
+            <span>Simulate Clean</span>
           </button>
 
           <button

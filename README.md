@@ -13,6 +13,13 @@ voiceprobe processes streaming phone calls (SIP/RTP, WebRTC, Twilio Media Stream
 - **Zero Heap Allocations in Audio Loop**: Pre-allocated circular buffers, twiddle factor LUTs, scratch buffers, and in-place tensor operations eliminate garbage collection pauses.
 - **Biometric Laryngeal Micro-Tremor Detection**: Computes cycle-to-cycle neuromuscular pitch jitter ($J_{loc}$) and aerodynamic shimmer ($S_{loc}$) via zero-crossings on DC-blocked, low-pass filtered fundamental waveforms.
 - **Glottal Harmonic Phase Discontinuity**: Unwraps and measures second-order phase dispersion across vocal tract resonances to identify transposed-convolution vocoder upsampling artifacts.
+- **Spectral Tilt & Formant Dispersion**: Computes energy decay across octaves ($S_{tilt}$ in dB/octave) to catch abnormally flat vocoder sub-band excitation spectra.
+- **Acoustic Replay & Loudspeaker THD Analysis**: Detects physical speaker non-linearities and acoustic cavity coloration when synthetic speech is played into a phone handset.
+- **Adaptive Wiener Denoising**: Continuously tracks background noise during pauses to preserve biometric precision over degraded cellular channels.
+- **FinTech Banking Security Policy Engine**: Configurable risk postures (`STANDARD`, `HIGH_VALUE_WIRE`, `EXECUTIVE_PROTECTION`) with dynamic thresholds, automated MFA step-up injection, and automatic call termination.
+- **Live Browser Microphone Sentinel**: Stream your live microphone audio directly from the browser to verify clean human phonation versus voice clones in real time.
+- **Interactive Forensic Waveform Scrubber & Biquad Filtering**: Click-to-seek timeline with real-time Web Audio bandpass filtering to isolate vocoder artifacts (2.8 kHz - 3.4 kHz).
+- **Cryptographic Forensic Audit Certificate**: Generates NIST SP 800-63B and ISO 27001 compliant incident reports with SHA-256 audio hashes and digital signatures.
 - **Telephony Ingestion Protocol Support**:
   - Twilio Media Streams WebSocket (`/stream/twilio`) with base64 G.711 mu-law decoding.
   - Raw UDP RTP listener (RFC 3550) supporting G.711u, G.711a, and L16 linear PCM.

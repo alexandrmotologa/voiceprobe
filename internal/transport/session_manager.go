@@ -28,21 +28,24 @@ type CallSession struct {
 	recentWriteIdx    int
 	recentTotal       int64
 	windowBuf         []float32                  // Pre-allocated analysis window scratch buffer
-	LastDiagnosis     classifier.FrameDiagnosis  `json:"last_diagnosis"`
-	PeakScore         float64                    `json:"peak_score"`
-	OverallRisk       classifier.RiskLevel       `json:"overall_risk"`
-	AlertTriggered    bool                       `json:"alert_triggered"`
+	LastDiagnosis      classifier.FrameDiagnosis `json:"last_diagnosis"`
+	PeakScore          float64                   `json:"peak_score"`
+	OverallRisk        classifier.RiskLevel      `json:"overall_risk"`
+	AlertTriggered     bool                      `json:"alert_triggered"`
+	TerminatedByPolicy bool                      `json:"terminated_by_policy"`
+	ActivePolicy       string                    `json:"active_policy"`
 }
 
 // SessionManager tracks concurrent telephone calls across all transports.
 type SessionManager struct {
-	mu         sync.RWMutex
-	cfg        *config.Config
-	scorer     *classifier.Scorer
-	recorder   *action.IncidentRecorder
-	dispatcher *action.WebhookDispatcher
-	sessions   map[string]*CallSession
-	listeners  []func(session *CallSession, diag classifier.FrameDiagnosis)
+	mu           sync.RWMutex
+	cfg          *config.Config
+	scorer       *classifier.Scorer
+	recorder     *action.IncidentRecorder
+	dispatcher   *action.WebhookDispatcher
+	policyEngine *action.PolicyEngine
+	sessions     map[string]*CallSession
+	listeners    []func(session *CallSession, diag classifier.FrameDiagnosis)
 }
 
 // NewSessionManager initializes session storage and scoring bindings.
@@ -55,12 +58,27 @@ func NewSessionManager(cfg *config.Config, recorder *action.IncidentRecorder, di
 	)
 
 	return &SessionManager{
-		cfg:        cfg,
-		scorer:     scorer,
-		recorder:   recorder,
-		dispatcher: dispatcher,
-		sessions:   make(map[string]*CallSession),
+		cfg:          cfg,
+		scorer:       scorer,
+		recorder:     recorder,
+		dispatcher:   dispatcher,
+		policyEngine: action.NewPolicyEngine(),
+		sessions:     make(map[string]*CallSession),
 	}
+}
+
+// SetPolicyEngine binds a custom policy engine.
+func (sm *SessionManager) SetPolicyEngine(pe *action.PolicyEngine) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.policyEngine = pe
+}
+
+// GetPolicyEngine returns the active policy engine.
+func (sm *SessionManager) GetPolicyEngine() *action.PolicyEngine {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.policyEngine
 }
 
 // AddListener registers a subscriber callback for real-time frame telemetry.
@@ -181,9 +199,20 @@ func (sm *SessionManager) FeedAudio(session *CallSession, samples []float32) {
 			session.OverallRisk = classifier.RiskSuspicious
 		}
 
-		// 3. Check for threat alerts
-		if diag.RiskLevel == classifier.RiskCritical && !session.AlertTriggered && diag.ConsecutiveHits >= sm.cfg.Detection.MinVoicedFrames {
+		// 3. Check for threat alerts with active security policy
+		minHits := sm.cfg.Detection.MinVoicedFrames
+		var activePolicy action.SecurityPolicy
+		if sm.policyEngine != nil {
+			activePolicy = sm.policyEngine.GetActivePolicy()
+			minHits = activePolicy.MinVoicedHits
+			session.ActivePolicy = string(activePolicy.Name)
+		}
+
+		if diag.RiskLevel == classifier.RiskCritical && !session.AlertTriggered && diag.ConsecutiveHits >= minHits {
 			session.AlertTriggered = true
+			if activePolicy.Action == action.ActionAutoTerminateCall {
+				session.TerminatedByPolicy = true
+			}
 
 			// Extract ordered audio slice from circular history buffer
 			var incidentSamples []float32

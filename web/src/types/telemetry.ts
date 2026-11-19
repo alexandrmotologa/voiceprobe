@@ -13,6 +13,10 @@ export interface TelemetryEvent {
   jitter: number;
   shimmer: number;
   f0_hz: number;
+  spectral_tilt?: number;
+  formant_dispersion?: number;
+  thd_percent?: number;
+  loudspeaker_anomaly?: boolean;
   vad_energy: number;
   is_voiced: boolean;
   consecutive_hits: number;
@@ -92,4 +96,28 @@ export interface IncidentRecord {
   summary: string;
   wav_file: string;
   indicators: string[];
+}
+
+export interface SecurityPolicy {
+  name: 'STANDARD' | 'HIGH_VALUE_WIRE' | 'EXECUTIVE_PROTECTION';
+  description: string;
+  suspicious_threshold: number;
+  critical_threshold: number;
+  min_voiced_hits: number;
+  action: string;
+  max_wire_amount_eur?: number;
+}
+
+export interface ForensicComplianceReport {
+  report_id: string;
+  generated_at: string;
+  call_id: string;
+  audio_sha256: string;
+  overall_threat_level: RiskLevel;
+  peak_synthetic_score: number;
+  confidence: number;
+  acoustic_anomalies: string[];
+  regulatory_framework: string;
+  recommended_action: string;
+  digital_signature: string;
 }

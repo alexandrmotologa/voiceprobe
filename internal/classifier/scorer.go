@@ -128,6 +128,12 @@ func (s *Scorer) EvaluateFrame(session *SessionState, feat *dsp.FrameFeatures) F
 	if feat.F0Hz > 0 && feat.Shimmer < 0.015 && feat.VAD.IsVoiced > 0 {
 		indicators = append(indicators, fmt.Sprintf("Suppressed shimmer (%.4f): synthetic amplitude symmetry", feat.Shimmer))
 	}
+	if feat.SpectralTilt > -3.5 && feat.SpectralTilt < 0.0 {
+		indicators = append(indicators, fmt.Sprintf("Shallow spectral tilt (%.1f dB/oct): uniform vocoder sub-band loss", feat.SpectralTilt))
+	}
+	if feat.LoudspeakerAnomaly || feat.THDPercent > 20.0 {
+		indicators = append(indicators, fmt.Sprintf("Acoustic loudspeaker replay anomaly (%.1f%% THD)", feat.THDPercent))
+	}
 	if feat.SpectralFlux > 0.150 {
 		indicators = append(indicators, fmt.Sprintf("Abrupt spectral flux transition (%.3f)", feat.SpectralFlux))
 	}

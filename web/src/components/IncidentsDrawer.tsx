@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Archive, X, AlertOctagon, Download, RefreshCw, Volume2 } from 'lucide-react';
+import { Archive, X, AlertOctagon, Download, RefreshCw, Volume2, FileCheck } from 'lucide-react';
 import { IncidentRecord } from '../types/telemetry';
 
 interface IncidentsDrawerProps {
@@ -109,13 +109,24 @@ export const IncidentsDrawer: React.FC<IncidentsDrawerProps> = ({ isOpen, onClos
                       <span className="flex items-center gap-1">
                         <Volume2 className="w-3.5 h-3.5 text-cyan-400" /> Forensic Audio Capture
                       </span>
-                      <a
-                        href={`/api/v1/incidents/${inc.wav_file}`}
-                        download
-                        className="text-cyan-400 hover:underline flex items-center gap-1"
-                      >
-                        <Download className="w-3 h-3" /> Download WAV
-                      </a>
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={`/api/v1/incidents/${inc.wav_file}/report`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
+                          title="Generate NIST/ISO 27001 Cryptographic Forensic Certificate"
+                        >
+                          <FileCheck className="w-3.5 h-3.5" /> NIST Audit Certificate
+                        </a>
+                        <a
+                          href={`/api/v1/incidents/${inc.wav_file}`}
+                          download
+                          className="text-cyan-400 hover:underline flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3" /> WAV
+                        </a>
+                      </div>
                     </div>
                     <audio
                       src={`/api/v1/incidents/${inc.wav_file}`}

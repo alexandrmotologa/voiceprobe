@@ -22,6 +22,10 @@ export const AcousticMetrics: React.FC<AcousticMetricsProps> = ({ telemetry }) =
     spectral_flux,
     spectral_centroid,
     f0_hz,
+    spectral_tilt = -6.0,
+    formant_dispersion = 1000.0,
+    thd_percent = 5.2,
+    loudspeaker_anomaly = false,
     vad_energy,
     key_indicators = [],
     risk_level,
@@ -39,6 +43,11 @@ export const AcousticMetrics: React.FC<AcousticMetricsProps> = ({ telemetry }) =
 
   // Glottal phase discontinuity: natural < 0.25, cloned > 0.45
   const isPhaseAbnormal = phase_discontinuity > 0.40;
+
+  // Spectral tilt anomaly: neural vocoder is typically flatter than -3.5 dB/octave
+  const isTiltAbnormal = spectral_tilt > -3.5 && spectral_tilt < 0.0;
+  // Loudspeaker replay anomaly
+  const isReplayAnomaly = loudspeaker_anomaly || thd_percent > 18.0;
 
   return (
     <div className="p-5 rounded-xl bg-[#0f111a] border border-slate-800/90 flex flex-col justify-between">
@@ -158,6 +167,46 @@ export const AcousticMetrics: React.FC<AcousticMetricsProps> = ({ telemetry }) =
           </div>
           <div className="text-[10px] text-slate-500 font-mono mt-0.5">
             RMS: {(vad_energy * 1000).toFixed(1)} mPa | {risk_level}
+          </div>
+        </div>
+
+        {/* Spectral Tilt */}
+        <div className={`p-2.5 rounded-lg border bg-slate-950/70 ${
+          isTiltAbnormal
+            ? 'border-rose-900/80 text-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.15)]'
+            : 'border-slate-800 text-slate-300'
+        }`}>
+          <div className="text-[11px] font-mono text-slate-400 mb-1 flex items-center justify-between">
+            <span>Spectral Tilt</span>
+            <span className={isTiltAbnormal ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
+              {isTiltAbnormal ? 'FLAT' : 'NATURAL'}
+            </span>
+          </div>
+          <div className="text-lg font-mono font-bold tracking-tight">
+            {spectral_tilt.toFixed(1)} dB/oct
+          </div>
+          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+            Dispersion: {formant_dispersion.toFixed(0)}Hz
+          </div>
+        </div>
+
+        {/* Loudspeaker Replay THD */}
+        <div className={`p-2.5 rounded-lg border bg-slate-950/70 ${
+          isReplayAnomaly
+            ? 'border-rose-900/80 text-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.15)]'
+            : 'border-slate-800 text-slate-300'
+        }`}>
+          <div className="text-[11px] font-mono text-slate-400 mb-1 flex items-center justify-between">
+            <span>Replay THD</span>
+            <span className={isReplayAnomaly ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
+              {isReplayAnomaly ? 'SPEAKER' : 'DIRECT'}
+            </span>
+          </div>
+          <div className="text-lg font-mono font-bold tracking-tight">
+            {thd_percent.toFixed(1)}%
+          </div>
+          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+            Threshold: &lt; 18.0%
           </div>
         </div>
       </div>

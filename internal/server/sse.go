@@ -25,6 +25,10 @@ type TelemetryEvent struct {
 	Jitter             float64                   `json:"jitter"`
 	Shimmer            float64                   `json:"shimmer"`
 	F0Hz               float64                   `json:"f0_hz"`
+	SpectralTilt       float64                   `json:"spectral_tilt"`
+	FormantDispersion  float64                   `json:"formant_dispersion"`
+	THDPercent         float64                   `json:"thd_percent"`
+	LoudspeakerAnomaly bool                      `json:"loudspeaker_anomaly"`
 	VADEnergy          float64                   `json:"vad_energy"`
 	IsVoiced           bool                      `json:"is_voiced"`
 	ConsecutiveHits    int                       `json:"consecutive_hits"`
@@ -135,7 +139,8 @@ func (h *SSEHub) AttachToSessionManager(sm *transport.SessionManager) {
 			copy(melCopy, diag.Features.MelEnergies)
 		}
 
-		var phaseDisc, flux, centroid, jitter, shimmer, f0, energy float64
+		var phaseDisc, flux, centroid, jitter, shimmer, f0, energy, tilt, formDisp, thd float64
+		var loudAnomaly bool
 		if diag.Features != nil {
 			phaseDisc = diag.Features.PhaseDiscontinuity
 			flux = diag.Features.SpectralFlux
@@ -144,6 +149,10 @@ func (h *SSEHub) AttachToSessionManager(sm *transport.SessionManager) {
 			shimmer = diag.Features.Shimmer
 			f0 = diag.Features.F0Hz
 			energy = diag.Features.VAD.Energy
+			tilt = diag.Features.SpectralTilt
+			formDisp = diag.Features.FormantDispersion
+			thd = diag.Features.THDPercent
+			loudAnomaly = diag.Features.LoudspeakerAnomaly
 		}
 
 		h.Broadcast(TelemetryEvent{
@@ -159,6 +168,10 @@ func (h *SSEHub) AttachToSessionManager(sm *transport.SessionManager) {
 			Jitter:             jitter,
 			Shimmer:            shimmer,
 			F0Hz:               f0,
+			SpectralTilt:       tilt,
+			FormantDispersion:  formDisp,
+			THDPercent:         thd,
+			LoudspeakerAnomaly: loudAnomaly,
 			VADEnergy:          energy,
 			IsVoiced:           diag.IsVoiced,
 			ConsecutiveHits:    diag.ConsecutiveHits,

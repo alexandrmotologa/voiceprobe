@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alexandrmotologa/voiceprobe/internal/action"
 	"github.com/alexandrmotologa/voiceprobe/internal/classifier"
 	"github.com/alexandrmotologa/voiceprobe/internal/config"
 	"github.com/alexandrmotologa/voiceprobe/internal/dsp"
@@ -40,6 +41,7 @@ func NewServerAPI(cfg *config.Config, sm *transport.SessionManager, sseHub *SSEH
 // RegisterRoutes attaches endpoints to an HTTP mux.
 func (api *ServerAPI) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/status", api.corsMiddleware(api.handleStatus))
+	mux.HandleFunc("/api/v1/policy", api.corsMiddleware(api.handlePolicy))
 	mux.HandleFunc("/api/v1/calls", api.corsMiddleware(api.handleCalls))
 	mux.HandleFunc("/api/v1/calls/", api.corsMiddleware(api.handleCallByID))
 	mux.HandleFunc("/api/v1/analyze", api.corsMiddleware(api.handleAnalyze))
@@ -48,6 +50,49 @@ func (api *ServerAPI) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/incidents/", api.corsMiddleware(api.handleIncidentFile))
 	mux.HandleFunc("/api/v1/events", api.sseHub.Handler())
 	mux.HandleFunc(api.cfg.Server.TwilioPath, transport.HandleTwilioWebSocket(api.sm))
+	mux.HandleFunc("/stream/browser-mic", transport.HandleBrowserMicWebSocket(api.sm))
+}
+
+func (api *ServerAPI) handlePolicy(w http.ResponseWriter, r *http.Request) {
+	pe := api.sm.GetPolicyEngine()
+	if pe == nil {
+		http.Error(w, `{"error":"policy engine not configured"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"active":   pe.GetActivePolicy(),
+			"policies": pe.ListPolicies(),
+		})
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		var req struct {
+			Policy string `json:"policy"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"invalid JSON request"}`, http.StatusBadRequest)
+			return
+		}
+
+		ok := pe.SetPolicy(action.SecurityPolicyName(req.Policy))
+		if !ok {
+			http.Error(w, `{"error":"unknown policy name"}`, http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "policy_updated",
+			"active": pe.GetActivePolicy(),
+		})
+		return
+	}
+
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
 func (api *ServerAPI) corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -225,8 +270,53 @@ func (api *ServerAPI) handleIncidents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *ServerAPI) handleIncidentFile(w http.ResponseWriter, r *http.Request) {
-	fileName := strings.TrimPrefix(r.URL.Path, "/api/v1/incidents/")
-	safeName := filepath.Base(fileName)
+	rawPath := strings.TrimPrefix(r.URL.Path, "/api/v1/incidents/")
+
+	// If requesting compliance audit report for an incident
+	if strings.HasSuffix(rawPath, "/report") {
+		base := strings.TrimSuffix(rawPath, "/report")
+		safeBase := filepath.Base(base)
+		jsonName := strings.TrimSuffix(safeBase, ".wav") + ".json"
+		fullJsonPath := filepath.Join(api.cfg.Actions.IncidentsDir, jsonName)
+
+		content, err := os.ReadFile(fullJsonPath)
+		if err != nil {
+			http.Error(w, `{"error":"incident metadata not found"}`, http.StatusNotFound)
+			return
+		}
+
+		var meta struct {
+			CallID         string               `json:"call_id"`
+			AudioWAVPath   string               `json:"audio_wav_path"`
+			ThreatLevel    classifier.RiskLevel `json:"threat_level"`
+			PeakScore      float64              `json:"peak_score"`
+			Confidence     float64              `json:"confidence"`
+			KeyIndicators  []string             `json:"key_indicators"`
+		}
+		if err := json.Unmarshal(content, &meta); err != nil {
+			http.Error(w, `{"error":"corrupted metadata"}`, http.StatusInternalServerError)
+			return
+		}
+
+		report, err := action.GenerateComplianceReport(
+			meta.CallID,
+			meta.AudioWAVPath,
+			meta.PeakScore,
+			meta.Confidence,
+			meta.ThreatLevel,
+			meta.KeyIndicators,
+		)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to generate report: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(report)
+		return
+	}
+
+	safeName := filepath.Base(rawPath)
 	fullPath := filepath.Join(api.cfg.Actions.IncidentsDir, safeName)
 
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {

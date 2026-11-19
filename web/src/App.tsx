@@ -15,12 +15,42 @@ export const App: React.FC = () => {
   const [activeCalls, setActiveCalls] = useState<CallSession[]>([]);
   const [selectedCallId, setSelectedCallId] = useState<string>('');
   const [latestTelemetry, setLatestTelemetry] = useState<TelemetryEvent | null>(null);
+  const [currentPolicy, setCurrentPolicy] = useState<string>('STANDARD');
 
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [isIncidentsOpen, setIsIncidentsOpen] = useState<boolean>(false);
 
   const selectedCallIdRef = useRef<string>('');
   selectedCallIdRef.current = selectedCallId;
+
+  // Fetch policy and active status
+  const fetchPolicy = async () => {
+    try {
+      const resp = await fetch('/api/v1/policy');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.active && data.active.name) {
+          setCurrentPolicy(data.active.name);
+        }
+      }
+    } catch (err) {
+      // offline
+    }
+  };
+
+  const handleSelectPolicy = async (policyName: string) => {
+    setCurrentPolicy(policyName);
+    try {
+      await fetch('/api/v1/policy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policy: policyName }),
+      });
+      fetchStatusAndCalls();
+    } catch (err) {
+      console.error('Failed to change policy', err);
+    }
+  };
 
   // 1. Fetch server status and active calls
   const fetchStatusAndCalls = async () => {
@@ -50,6 +80,7 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
+    fetchPolicy();
     fetchStatusAndCalls();
     const interval = setInterval(fetchStatusAndCalls, 2000);
     return () => clearInterval(interval);
@@ -142,6 +173,14 @@ export const App: React.FC = () => {
         onOpenUpload={() => setIsUploadOpen(true)}
         onOpenIncidents={() => setIsIncidentsOpen(true)}
         activeCount={activeCalls.length}
+        currentPolicy={currentPolicy}
+        onSelectPolicy={handleSelectPolicy}
+        onMicStreamActive={(active) => {
+          if (active) {
+            setSelectedCallId('mic-live');
+            fetchStatusAndCalls();
+          }
+        }}
       />
 
       {/* Main Forensic Dashboard */}
