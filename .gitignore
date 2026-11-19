@@ -1,0 +1,24 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/voiceprobe
+
+# Node / Vite
+web/node_modules/
+web/.vite/
+web/dist/
+
+# Runtime incident recordings
+data/incidents/
+data/captures/
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/

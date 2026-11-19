@@ -1,0 +1,29 @@
+# voiceprobe production configuration file
+server:
+  http_port: 7979
+  twilio_path: "/stream/twilio"
+  rtp_port: 5004
+  sip_port: 5060
+  enable_cors: true
+
+dsp:
+  sample_rate: 8000           # Telephony narrowband (8000Hz) or wideband (16000Hz)
+  window_duration_ms: 300     # Sliding DSP window (300ms)
+  hop_duration_ms: 150        # Step interval (150ms, 50% overlap)
+  mel_bins: 40                # Triangular filterbank bands
+  fft_size: 2048              # Radix-2 FFT points
+  vad_energy_threshold: 0.0008# Voice activity gating threshold
+
+detection:
+  suspicious_threshold: 0.40  # Yellow alert boundary (elevated anomaly monitoring)
+  critical_threshold: 0.75    # Red alert boundary (deepfake clone detected)
+  smoothing_alpha: 0.35       # Exponential moving average filter weight
+  min_voiced_frames: 3        # Sustained anomaly frames before firing alert
+
+actions:
+  webhook_enabled: false
+  webhook_url: "http://127.0.0.1:9000/webhook/fraud-alert"
+  webhook_timeout: "2s"
+  sip_header_injection: true  # Inject X-Deepfake-Alert headers into SIP signaling
+  record_incidents: true      # Persist WAV and JSON forensic audit files
+  incidents_dir: "./data/incidents"

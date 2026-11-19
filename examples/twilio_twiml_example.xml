@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <!-- voiceprobe live telephony media stream interception -->
+    <Start>
+        <Stream url="wss://voiceprobe.bankdomain.internal:7979/stream/twilio">
+            <Parameter name="accountNumber" value="ACCT-0928172" />
+            <Parameter name="desk" value="HIGH_VALUE_WIRE_AUTHORIZATION" />
+        </Stream>
+    </Start>
+    <!-- Connect call to bank operations desk -->
+    <Dial timeout="30">
+        <Number>+18005550199</Number>
+    </Dial>
+</Response>
