@@ -16,6 +16,12 @@ var EmbeddedDist embed.FS
 
 // RegisterStaticHandlers binds static asset routes to the HTTP multiplexer.
 func RegisterStaticHandlers(mux *http.ServeMux) {
+	// Serve local examples if present
+	examplesDir := "./examples"
+	if fi, err := os.Stat(examplesDir); err == nil && fi.IsDir() {
+		mux.Handle("/examples/", http.StripPrefix("/examples/", http.FileServer(http.Dir(examplesDir))))
+	}
+
 	// 1. Try local web/dist folder (development & local runs)
 	localDist := "./web/dist"
 	if fi, err := os.Stat(localDist); err == nil && fi.IsDir() {

@@ -40,14 +40,14 @@ export const ActiveCallsTable: React.FC<ActiveCallsTableProps> = ({
 
   return (
     <div className="p-5 rounded-xl bg-[#0f111a] border border-slate-800/90">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <Phone className="w-4 h-4 text-cyan-400" />
           <h2 className="text-xs font-mono font-semibold tracking-wider text-slate-300 uppercase">
             Active Telephony Ingestion Streams ({calls.length})
           </h2>
         </div>
-        <div className="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+        <div className="text-[11px] font-mono text-slate-400 flex items-center gap-2 flex-wrap">
           <span>SIP RFC 3261</span>
           <span>&bull;</span>
           <span>UDP RTP RFC 3550</span>

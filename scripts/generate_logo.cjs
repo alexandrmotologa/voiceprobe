@@ -1,0 +1,229 @@
+const fs = require('fs');
+const path = require('path');
+const { Resvg } = require('@resvg/resvg-js');
+
+function buildLogoSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="squircle-clip">
+      <rect x="24" y="24" width="976" height="976" rx="220" />
+    </clipPath>
+
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff"/>
+      <stop offset="50%" stop-color="#00c8f8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <linearGradient id="cyan-soft" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+
+    <filter id="subtle-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.14" />
+    </filter>
+  </defs>
+
+  <!-- Luxury White Squircle Container -->
+  <rect x="24" y="24" width="976" height="976" rx="220" fill="#ffffff" stroke="#e2e8f0" stroke-width="6" />
+
+  <g clip-path="url(#squircle-clip)">
+    <g transform="translate(512, 512)" filter="url(#subtle-shadow)">
+
+      <!-- Hexagonal Architectural Gateway Frame -->
+      <polygon points="
+        0,-390
+        338,-195
+        338,195
+        0,390
+        -338,195
+        -338,-195
+      " fill="none" stroke="#0f172a" stroke-width="40" stroke-linejoin="round" />
+
+      <!-- Inner Cyan Dashed Telemetry Ring -->
+      <polygon points="
+        0,-355
+        307,-177
+        307,177
+        0,355
+        -307,177
+        -307,-177
+      " fill="none" stroke="#00f5ff" stroke-width="4" opacity="0.4" stroke-dasharray="16, 12" />
+
+      <!-- 100% Watertight Solid Base Silhouette (Zero-Leak Rule) -->
+      <path d="
+        M -155,-290
+        L -185,-120
+        L -210,-50
+        L -255,60
+        L -170,220
+        L -105,210
+        L -70,265
+        L 0,290
+        L 70,265
+        L 105,210
+        L 170,220
+        L 255,60
+        L 210,-50
+        L 185,-120
+        L 155,-290
+        L 70,-175
+        L 0,-155
+        L -70,-175
+        Z
+      " fill="#090d16" />
+
+      <!-- === ACOUSTIC SONAR EARS (Directional Echolocation Arrays) === -->
+      <!-- Left Ear Outer Ridge -->
+      <polygon points="-155,-290 -185,-120 -115,-105 -100,-210" fill="#1e293b" />
+      <!-- Left Ear Upper Cavity -->
+      <polygon points="-155,-290 -100,-210 -70,-155 -40,-165" fill="#334155" />
+      <!-- Left Ear Inner Canal -->
+      <polygon points="-100,-210 -115,-105 -65,-95 -70,-155" fill="#0f172a" />
+      <!-- Left Ear Acoustic Telemetry Ribs -->
+      <line x1="-125" y1="-220" x2="-80" y2="-195" stroke="#00f5ff" stroke-width="3.5" opacity="0.8" stroke-linecap="round" />
+      <line x1="-105" y1="-165" x2="-65" y2="-145" stroke="#00f5ff" stroke-width="3" opacity="0.7" stroke-linecap="round" />
+      <line x1="-88" y1="-125" x2="-60" y2="-112" stroke="#00f5ff" stroke-width="2.5" opacity="0.6" stroke-linecap="round" />
+
+      <!-- Right Ear Outer Ridge -->
+      <polygon points="155,-290 185,-120 115,-105 100,-210" fill="#0f172a" />
+      <!-- Right Ear Upper Cavity -->
+      <polygon points="155,-290 100,-210 70,-155 40,-165" fill="#1e293b" />
+      <!-- Right Ear Inner Canal -->
+      <polygon points="100,-210 115,-105 65,-95 70,-155" fill="#0b0f19" />
+      <!-- Right Ear Acoustic Telemetry Ribs -->
+      <line x1="125" y1="-220" x2="80" y2="-195" stroke="#00f5ff" stroke-width="3.5" opacity="0.8" stroke-linecap="round" />
+      <line x1="105" y1="-165" x2="65" y2="-145" stroke="#00f5ff" stroke-width="3" opacity="0.7" stroke-linecap="round" />
+      <line x1="88" y1="-125" x2="60" y2="-112" stroke="#00f5ff" stroke-width="2.5" opacity="0.6" stroke-linecap="round" />
+
+      <!-- === CRANIAL / FOREHEAD FACETS === -->
+      <!-- Center Forehead Diamond -->
+      <polygon points="0,-175 -40,-165 0,-95 40,-165" fill="#475569" />
+      <!-- Left Temple Armor Plate -->
+      <polygon points="-40,-165 -70,-155 -65,-95 0,-95" fill="#334155" />
+      <!-- Right Temple Armor Plate -->
+      <polygon points="40,-165 70,-155 65,-95 0,-95" fill="#1e293b" />
+
+      <!-- Brow Ridge Left -->
+      <polygon points="0,-95 -65,-95 -45,-55 0,-60" fill="#334155" />
+      <!-- Brow Ridge Right -->
+      <polygon points="0,-95 65,-95 45,-55 0,-60" fill="#1e293b" />
+
+      <!-- === PREDATOR OPTICS (Alert Geometric Gaze) === -->
+      <!-- Left Eye Orbit & Socket -->
+      <polygon points="-75,-72 -30,-62 -28,-40 -68,-48" fill="#0b0f19" />
+      <!-- Left Electric Cyan Gaze -->
+      <polygon points="-68,-65 -34,-57 -32,-45 -62,-51" fill="url(#cyan-glow)" />
+      <!-- Left Retinal Focus Core -->
+      <polygon points="-54,-60 -42,-56 -44,-49 -52,-51" fill="#ffffff" />
+
+      <!-- Right Eye Orbit & Socket -->
+      <polygon points="75,-72 30,-62 28,-40 68,-48" fill="#0b0f19" />
+      <!-- Right Electric Cyan Gaze -->
+      <polygon points="68,-65 34,-57 32,-45 62,-51" fill="url(#cyan-glow)" />
+      <!-- Right Retinal Focus Core -->
+      <polygon points="54,-60 42,-56 44,-49 52,-51" fill="#ffffff" />
+
+      <!-- === BIOSONAR NOSELEAF & APERTURE (Microbat Ultrasound Emitter) === -->
+      <!-- Center Echolocation Noseleaf Facets -->
+      <polygon points="0,-70 -22,-45 0,-25" fill="#64748b" />
+      <polygon points="0,-70 22,-45 0,-25" fill="#334155" />
+      <!-- Noseleaf Center Pulse Notch -->
+      <line x1="0" y1="-64" x2="0" y2="-34" stroke="#00f5ff" stroke-width="3" stroke-linecap="round" />
+
+      <!-- Muzzle / Jaw Armor Plates (Disciplined Low-Poly, No Buck Teeth) -->
+      <polygon points="0,-25 -38,-30 -32,2 0,14" fill="#334155" />
+      <polygon points="0,-25 38,-30 32,2 0,14" fill="#1e293b" />
+      <!-- Geometric Chin Plate -->
+      <polygon points="0,14 -28,6 0,40 28,6" fill="#475569" />
+
+      <!-- === FOLDED ORIGAMI WINGS & TORSO ARMOR === -->
+      <!-- Left Shoulder Mantle -->
+      <polygon points="-185,-120 -210,-50 -130,20 -65,-30" fill="#1e293b" />
+      <!-- Right Shoulder Mantle -->
+      <polygon points="185,-120 210,-50 130,20 65,-30" fill="#0f172a" />
+
+      <!-- Left Mid-Wing Apex -->
+      <polygon points="-210,-50 -255,60 -185,120 -130,20" fill="#334155" />
+      <!-- Right Mid-Wing Apex -->
+      <polygon points="210,-50 255,60 185,120 130,20" fill="#1e293b" />
+
+      <!-- Left Inner Cloak Plate -->
+      <polygon points="-130,20 -185,120 -95,140 -50,60" fill="#1e293b" />
+      <!-- Right Inner Cloak Plate -->
+      <polygon points="130,20 185,120 95,140 50,60" fill="#0b0f19" />
+
+      <!-- Left Lower Wing Tip -->
+      <polygon points="-185,120 -170,220 -105,210 -95,140" fill="#334155" />
+      <!-- Right Lower Wing Tip -->
+      <polygon points="185,120 170,220 105,210 95,140" fill="#1e293b" />
+
+      <!-- Ventral Cloak Flank Left -->
+      <polygon points="-95,140 -105,210 -70,265 0,230 0,150" fill="#1e293b" />
+      <!-- Ventral Cloak Flank Right -->
+      <polygon points="95,140 105,210 70,265 0,230 0,150" fill="#0f172a" />
+
+      <!-- Ventral Keel / Tail Diamond -->
+      <polygon points="0,230 -38,260 0,290 38,260" fill="#334155" />
+
+      <!-- === CENTRAL SONIC PHASE RADAR & CORE (Chest Acoustic Sentinel) === -->
+      <!-- Expanding Concentric Sonar Pulses -->
+      <path d="M -90,45 A 110,110 0 0,1 90,45" fill="none" stroke="#00f5ff" stroke-width="2.5" opacity="0.35" stroke-dasharray="8, 6" />
+      <path d="M -68,62 A 80,80 0 0,1 68,62" fill="none" stroke="#00f5ff" stroke-width="3" opacity="0.65" />
+      <path d="M -45,78 A 52,52 0 0,1 45,78" fill="none" stroke="#00f5ff" stroke-width="3.5" opacity="0.9" />
+
+      <!-- Central Hex Radar Telemetry Core -->
+      <polygon points="
+        0,62
+        30,79
+        30,113
+        0,130
+        -30,113
+        -30,79
+      " fill="#090d16" stroke="#00f5ff" stroke-width="4" stroke-linejoin="round" />
+
+      <!-- Inner Glowing Frequency Core -->
+      <polygon points="0,78 18,96 0,114 -18,96" fill="url(#cyan-glow)" />
+      <!-- Center Optical Pip -->
+      <circle cx="0" cy="96" r="4" fill="#ffffff" />
+
+      <!-- Lower Frequency Emission Arcs -->
+      <path d="M -42,128 A 48,48 0 0,0 42,128" fill="none" stroke="#00f5ff" stroke-width="3" opacity="0.85" />
+      <path d="M -64,142 A 75,75 0 0,0 64,142" fill="none" stroke="#00f5ff" stroke-width="2" opacity="0.45" stroke-dasharray="6, 5" />
+
+    </g>
+  </g>
+</svg>`;
+}
+
+async function render() {
+  const outputDir = path.resolve(__dirname, '../docs/images');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const svg = buildLogoSvg();
+  const svgPath = path.join(outputDir, 'logo.svg');
+  const pngPath = path.join(outputDir, 'logo.png');
+
+  fs.writeFileSync(svgPath, svg, 'utf8');
+  console.log('✓ Written docs/images/logo.svg');
+
+  const resvg = new Resvg(svg, {
+    fitTo: {
+      mode: 'width',
+      value: 1024,
+    },
+  });
+
+  const pngData = resvg.render();
+  const pngBuffer = pngData.asPng();
+  fs.writeFileSync(pngPath, pngBuffer);
+  console.log(`✓ Rendered docs/images/logo.png (${pngBuffer.length} bytes, 1024x1024)`);
+}
+
+render().catch(err => {
+  console.error('Render failed:', err);
+  process.exit(1);
+});
